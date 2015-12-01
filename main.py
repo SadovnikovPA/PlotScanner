@@ -6,7 +6,8 @@ import sys
 
 from PIL import Image, ImageDraw, ImageFilter
 
-from utils import ensure_path_exists, unpack_and_draw_lines, map_to_origin_rectangle, map_to_image_and_save, debug
+from utils_general import ensure_path_exists, map_to_origin_rectangle, debug
+from utils_draw import unpack_and_draw_lines, map_to_image_and_save
 from gradient import compute_gradient
 from find_hough_lines import find_hough_lines_in_piece, quick_window_detect
 from integral_image import *
@@ -61,6 +62,7 @@ def prepare_environment():
     return files_to_process, path_to_output_documents, debug_dir
 
 
+
 if __name__ == "__main__":
 
     #Processing script's arguments
@@ -78,14 +80,14 @@ if __name__ == "__main__":
     side_safe_margin = 10
 
     #Gradienting
-    gradient_threshold = 40
+    gradient_threshold = 100 #40
 
     #A4 output size
     a4_size_x = 210*2
     a4_size_y = 297*2
 
     #Hough search constants
-    hough_threshold = 35
+    hough_threshold = 20 #35
     hough_radius_angle = 20
     hough_radius_rho = 40
 
@@ -123,15 +125,15 @@ if __name__ == "__main__":
             image.save(join(debug_dir, filename + "_image+median.png"), "PNG")
 
         # Creates image for gradient then processing it
-        image_gradient, gradient_abs_list, gradient_angle_list = compute_gradient(pix, width, height, gradient_threshold)
+        image_gradient, gradient_abs = compute_gradient(pix, width, height, gradient_threshold)
         if debug:
             image_gradient.save(join(debug_dir, filename + "_gradient.png"), "PNG")
 
-        external_borders_map = [[0]*height for x in range(width)]
-        mark_external_borders(external_borders_map, gradient_abs_list, 0, height, 0, width, 25, 1, False)
+        external_borders_map = np.zeros((width, height)) #[[0]*height for x in range(width)]
+        external_borders_map = mark_external_borders(external_borders_map, gradient_abs, 0, height, 0, width, 25, 1, False)
 
         if debug:
-            map_to_image_and_save(image_gradient, external_borders_map, debug_dir, filename, "_processed_gradient.png")
+            map_to_image_and_save(image_gradient, external_borders_map, debug_dir, filename, "_processed_gradient.png", mode=6)
 
         # Performs quick window search. Thus we obtain approximate location of document.
 
@@ -144,13 +146,13 @@ if __name__ == "__main__":
             draw.rectangle((x_pt, y_pt, x_pt + x_window_size, y_pt + y_window_size), fill=None)
             image.save(join(debug_dir, filename + "_window_detected.png"), "PNG")
 
-        mark_external_borders(external_borders_map, gradient_abs_list, y_pt, y_pt + y_window_size, x_pt, x_pt + x_window_size, 1000, 0, True)
+        external_borders_map = mark_external_borders(external_borders_map, gradient_abs, y_pt, y_pt + y_window_size, x_pt, x_pt + x_window_size, 1000, 0, True)
 
         if debug:
-            map_to_image_and_save(image_gradient, external_borders_map, debug_dir, filename, "_reprocessed_gradient.png")
+            map_to_image_and_save(image_gradient, external_borders_map, debug_dir, filename, "_reprocessed_gradient.png", mode=6)
 
         # Performs Hough search in located window and splicing lines if several close found
-        hough_line_list, max_rho = find_hough_lines_in_piece(image_gradient, x_pt, y_pt, x_pt + x_window_size, y_pt + y_window_size, hough_threshold, hough_radius_angle, hough_radius_rho)
+        hough_line_list = find_hough_lines_in_piece(image_gradient, x_pt, y_pt, x_pt + x_window_size, y_pt + y_window_size, hough_threshold, hough_radius_angle, hough_radius_rho)
         refined_line_list = line_splice(hough_line_list, x_window_size, y_window_size, x_pt, y_pt, parallel_lines_margin, dot_product_threshold, hough_radius_angle)
 
         #Finds corners and marks them as upper-left, upper-right, down-left, down-right

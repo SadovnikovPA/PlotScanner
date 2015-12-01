@@ -1,6 +1,6 @@
 __author__ = 'Siarshai'
 
-from utils import fill_the_gaps
+from utils_general import fill_the_gaps
 
 class PixelAnalyzer :
 
@@ -58,31 +58,30 @@ def mark_external_borders(external_borders_map, gradient_abs_list, y_lo, y_hi, x
     if should_clear_external_borders_map:
         for y in range(y_lo, y_hi):
             for x in range(x_lo, x_hi):
-                external_borders_map[x][y] = 0
+                external_borders_map[x, y] = 0
 
     for y in range(y_lo, y_hi):
         pixel_analyzer.invalidate()
         for x in range(x_lo, x_hi):
-            external_borders_map[x][y] = pixel_analyzer.consume(gradient_abs_list[x][y]) if external_borders_map[x][y] == 0 else external_borders_map[x][y]
+            external_borders_map[x, y] = pixel_analyzer.consume(gradient_abs_list[x, y]) if external_borders_map[x, y] == 0 else external_borders_map[x, y]
 
     for y in range(y_lo, y_hi):
         pixel_analyzer.invalidate()
         for x in range(x_hi - 1, x_lo, -1):
-            external_borders_map[x][y] = pixel_analyzer.consume(gradient_abs_list[x][y]) if external_borders_map[x][y] == 0 else external_borders_map[x][y]
+            external_borders_map[x, y] = pixel_analyzer.consume(gradient_abs_list[x, y]) if external_borders_map[x, y] == 0 else external_borders_map[x, y]
 
     for x in range(x_lo, x_hi):
         pixel_analyzer.invalidate()
         for y in range(y_lo, y_hi):
-            external_borders_map[x][y] = pixel_analyzer.consume(gradient_abs_list[x][y]) if external_borders_map[x][y] == 0 else external_borders_map[x][y]
+            external_borders_map[x, y] = pixel_analyzer.consume(gradient_abs_list[x, y]) if external_borders_map[x, y] == 0 else external_borders_map[x, y]
 
     for x in range(x_lo, x_hi):
         pixel_analyzer.invalidate()
         for y in range(y_hi-1, y_lo, -1):
-            external_borders_map[x][y] = pixel_analyzer.consume(gradient_abs_list[x][y]) if external_borders_map[x][y] == 0 else external_borders_map[x][y]
+            external_borders_map[x, y] = pixel_analyzer.consume(gradient_abs_list[x, y]) if external_borders_map[x, y] == 0 else external_borders_map[x, y]
 
     # Additionally removes stray specks
-    fill_the_gaps(external_borders_map, x_lo, x_hi, y_lo, y_hi)
-    fill_the_gaps(external_borders_map, x_lo, x_hi, y_lo, y_hi)
-    fill_the_gaps(external_borders_map, x_lo, x_hi, y_lo, y_hi)
-    #
-    # return external_borders_map
+    external_borders_map = fill_the_gaps(external_borders_map, x_lo, x_hi, y_lo, y_hi)
+    external_borders_map = fill_the_gaps(external_borders_map, x_lo, x_hi, y_lo, y_hi)
+    external_borders_map = fill_the_gaps(external_borders_map, x_lo, x_hi, y_lo, y_hi)
+    return external_borders_map

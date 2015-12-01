@@ -1,70 +1,17 @@
 from integral_image import piece_of_integral_image_buffer
+from non_maximal_suppression import apply_recursive_nms
 
 __author__ = 'Siarshai'
 
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image
 from math import sin, cos, pi, sqrt
-from utils import is_local_maximum_circular, debug, map_to_image_and_save
-from kernel_generator import apply_kernel_to_image, convert_data_buffer_to_image, dump_data, get_gaussian_kernel
+from utils_general import is_local_maximum_circular, debug
+from utils_draw import map_to_image_and_save
+from kernels import get_gaussian_kernel
 import numpy
 from scipy.signal import convolve2d
 from statistics import median
 import sys
-
-
-def apply_non_maximal_suppresssion(data, box_x_min, box_x_max, box_y_min, box_y_max, width, height, nms_radius = 4, nms_threshold = 20):
-    max_map = numpy.array([[0 for x in range(width)] for y in range(height)])
-    for y in range(box_y_min, box_y_max):
-        for x in range(box_x_min, box_x_max):
-            for xx in range(-nms_radius, nms_radius + 1):
-                if 0 <= x + xx < width:
-                    for yy in range(-nms_radius, nms_radius + 1):
-                        if 0 <= y + yy < height:
-                            if data[y + yy, x + xx] > max_map[y, x]:
-                                max_map[y, x] = data[y + yy, x + xx]
-    for y in range(box_y_min, box_y_max):
-        for x in range(box_x_min, box_x_max):
-            if data[y, x] < max_map[y, x] or data[y, x] < nms_threshold:
-                data[y, x] = 0
-    return data
-
-
-def apply_recursive_nms(box, data, mask_visited, threshold_low, threshold_high):
-    for y in range(box[0][0], box[0][1]):
-        for x in range(box[1][0], box[1][1]):
-            if not mask_visited[y, x]:
-                if data[y, x] > threshold_low:
-                    val_cluster_max, x_cluster_max, y_cluster_max = nms_inner([(x, y)], box, data, mask_visited, threshold_low, threshold_high)
-                    if val_cluster_max > threshold_high:
-                        data[y_cluster_max, x_cluster_max] = val_cluster_max
-                else:
-                    mask_visited[y, x] = True
-                    data[y, x] = 0
-    return data
-
-
-def nms_inner(points_to_visit, box, data, mask_visited, threshold_low, threshold_high):
-    val_cluster_max = -1
-    x_cluster_max = -1
-    y_cluster_max = -1
-    while points_to_visit:
-        x, y = points_to_visit.pop()
-        if not mask_visited[y, x]:
-            mask_visited[y, x] = True
-            val = data[y, x]
-            data[y, x] = 0
-            if val > val_cluster_max:
-                val_cluster_max = val
-                x_cluster_max = x
-                y_cluster_max = y
-            for yy in range(-1, 2):
-                for xx in range(-1, 2):
-                    if box[1][0] <= x + xx < box[1][1] and box[0][0] <= y + yy < box[0][1]:
-                        if data[y+yy, x+xx] > threshold_low:
-                            points_to_visit.append((x+xx, y+yy))
-    if val_cluster_max < threshold_high:
-        val_cluster_max = -1
-    return val_cluster_max, x_cluster_max, y_cluster_max
 
 
 def axis_lookup(points_to_visit, data, mask_visited, threshold, width, height):
@@ -94,7 +41,7 @@ def axis_lookup(points_to_visit, data, mask_visited, threshold, width, height):
 
 
 
-def find_axis_cross(data_h, data_v, image_data):
+def find_crosses(data_h, data_v, image_data):
 
     assert(len(data_h) == len(data_v))
     assert(len(data_h[0]) == len(data_v[0]))
@@ -104,7 +51,7 @@ def find_axis_cross(data_h, data_v, image_data):
     nms_mask_visited = numpy.array([[False for x in range(width)] for y in range(height)])
 
     if debug:
-        find_axis_cross.counter += 1
+        find_crosses.counter += 1
         image_dump = Image.new("L", (width, height))
 
     # Points voting for lines
@@ -140,7 +87,7 @@ def find_axis_cross(data_h, data_v, image_data):
         print("Detected axes cross: ", x_axis_cross, y_axis_cross)
 
     if debug:
-        map_to_image_and_save(image_dump, image_data, "debug/", str(find_axis_cross.counter), "_before_cross_filter.png", mode = 6)
+        map_to_image_and_save(image_dump, image_data, "debug/", str(find_crosses.counter), "_before_cross_filter.png", mode = 7)
 
     cross_size = 7
     cross_center = cross_size//2
@@ -165,7 +112,7 @@ def find_axis_cross(data_h, data_v, image_data):
     data_cross = convolve2d(data_cross, get_gaussian_kernel(3, 2, True))
 
     if debug:
-        map_to_image_and_save(image_dump, data_cross, "debug/", str(find_axis_cross.counter), "_before_nms.png", mode = 6)
+        map_to_image_and_save(image_dump, data_cross, "debug/", str(find_crosses.counter), "_before_nms.png", mode = 7)
 
     x_low, x_high, y_low, y_high  = axis_lookup([(x_axis_cross, y_axis_cross)],
                                                 data_cross, nms_mask_visited, nms_threshold_axis_deletion, width, height)
@@ -177,7 +124,7 @@ def find_axis_cross(data_h, data_v, image_data):
     data_cross = apply_recursive_nms(box, data_cross, nms_mask_visited, nms_threshold_low, nms_threshold_high)
 
     if debug:
-        map_to_image_and_save(image_dump, data_cross, "debug/", str(find_axis_cross.counter), "_after_nms.png", mode = 6)
+        map_to_image_and_save(image_dump, data_cross, "debug/", str(find_crosses.counter), "_after_nms.png", mode = 7)
 
     crosses_result_pt_list = []
     crosses_result_val_list = []
@@ -193,7 +140,7 @@ def find_axis_cross(data_h, data_v, image_data):
     return x_axis_cross, y_axis_cross, crosses_result_pt_list
 
 
-find_axis_cross.counter = 0
+find_crosses.counter = 0
 
 
 
@@ -239,9 +186,15 @@ def find_hough_lines_in_piece(image_gradient, x_ul, y_ul, x_dr, y_dr, hough_thre
         for rho in range(2*max_rho):
             if hough_data[alpha][rho] > hough_threshold and is_local_maximum_circular(hough_data, alpha, rho, 180, 2*max_rho, hough_radius_angle, hough_radius_rho):
                 coordinate_shift = -(x_ul*sin(alpha*pi/180.0) - y_ul*cos(alpha*pi/180.0))
-                hough_line_list.append((alpha, rho + coordinate_shift - max_rho))
+                hough_line_list.append((alpha, rho + coordinate_shift - max_rho, hough_data[alpha][rho]))
 
-    return hough_line_list, max_rho
+    if len(hough_line_list) > 4:
+        hough_line_list.sort(key=lambda x: x[2], reverse=True)
+        hough_line_list = [(x[0], x[1]) for x in hough_line_list][0:4]
+    else:
+        hough_line_list = [(x[0], x[1]) for x in hough_line_list]
+
+    return hough_line_list
 
 
 def quick_window_detect(processed_gradient_ii, width, height, window_step = 15, border_check_size = 5, border_check_threshold = 2*255, minimal_list_response_threshold = 100*255):

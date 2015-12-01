@@ -1,5 +1,5 @@
 from math import sqrt, sin, cos, asin, acos, pi
-from utils import line_instersection, scalar_multiplication, make_ky_line, make_kx_line, unpack_line
+from utils_general import line_instersection, dot_product, make_ky_line, make_kx_line, unpack_line
 
 
 def line_splice(hough_line_list, x_window_size, y_window_size, x_pt, y_pt, parallel_lines_margin, dot_product_threshold, hough_radius_angle):
@@ -38,7 +38,7 @@ def line_splice(hough_line_list, x_window_size, y_window_size, x_pt, y_pt, paral
                     else:
                         x, y = -1, -1
             #Lines intersect in rectangle and almost parallel
-            if x_pt <= x <= x_pt + x_window_size and y_pt <= y <= y_pt + y_window_size and abs(scalar_multiplication(a1, b1, a2, b2)) > dot_product_threshold:
+            if x_pt <= x <= x_pt + x_window_size and y_pt <= y <= y_pt + y_window_size and abs(dot_product(a1, b1, a2, b2)) > dot_product_threshold:
                 line_splice.append(line2)
                 del hough_line_list[j]
                 n -= 1

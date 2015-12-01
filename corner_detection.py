@@ -1,6 +1,6 @@
 __author__ = 'Siarshai'
 
-from utils import unpack_line, scalar_multiplication, line_instersection
+from utils_general import unpack_line, line_instersection, dot_product
 from math import hypot
 
 
@@ -22,9 +22,9 @@ def find_corners(refined_line_list):
     while i < n:
         a1, b1, rho1 = unpack_line(base_line)
         a2, b2, rho2 = unpack_line(refined_line_list[i])
-        dot_product = abs(scalar_multiplication(a1, b1, a2, b2))
-        if dot_product > max_dot_product:
-            max_dot_product = dot_product
+        cur_dot_product = abs(dot_product(a1, b1, a2, b2))
+        if cur_dot_product > max_dot_product:
+            max_dot_product = cur_dot_product
             j = i
         i += 1
 
