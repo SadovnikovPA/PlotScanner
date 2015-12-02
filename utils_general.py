@@ -343,8 +343,14 @@ def map_to_origin_rectangle(ul, ur, dl, dr, thumbnail_factor):
     return ul_orig, ur_orig, dl_orig, dr_orig
 
 
-def convert_image_to_data_buffer(pix, width, height, mode=3):
-    if mode == 1:
-        return numpy.array([[pix[x, y] for x in range(width)] for y in range(height)])
+def convert_image_to_data_buffer(pix, width, height, mode=3, orientation=1):
+    if orientation == 1:
+        if mode == 1:
+            return numpy.array([[pix[x, y] for x in range(width)] for y in range(height)])
+        else:
+            return numpy.array([[(pix[x, y][0] + pix[x, y][1] + pix[x, y][2])/3 for x in range(width)] for y in range(height)])
     else:
-        return numpy.array([[(pix[x, y][0] + pix[x, y][1] + pix[x, y][2])/3 for x in range(width)] for y in range(height)])
+        if mode == 1:
+            return numpy.array([[pix[x, y] for y in range(height)] for x in range(width)])
+        else:
+            return numpy.array([[(pix[x, y][0] + pix[x, y][1] + pix[x, y][2])/3 for y in range(height)] for x in range(width)])

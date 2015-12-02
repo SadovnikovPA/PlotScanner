@@ -2,7 +2,43 @@ from math import sqrt, sin, cos, asin, acos, pi
 from utils_general import line_instersection, dot_product, make_ky_line, make_kx_line, unpack_line
 
 
-def line_splice(hough_line_list, x_window_size, y_window_size, x_pt, y_pt, parallel_lines_margin, dot_product_threshold, hough_radius_angle):
+def mean_angle(angle1, angle2):
+    if angle1 < 0:
+        n = -angle1//pi + 1
+        angle1 += n*pi
+    if angle1 > pi:
+        n = angle1//pi
+        angle1 -= n*pi
+    if angle2 < 0:
+        n = -angle2//pi + 1
+        angle2 += n*pi
+    if angle2 > pi:
+        n = angle2//pi
+        angle2 -= n*pi
+    if abs(angle1 - angle2) > pi/2:
+        angle1 -= pi
+    mean = (angle1 + angle2)/2
+    if mean < 0:
+        mean += pi
+    return mean
+
+
+def splice_line(a1, b1, rho1, a2, b2, rho2, mode="grad"):
+    x, y = line_instersection(a1, b1, rho1, a2, b2, rho2)
+    angle1 = acos(b1)
+    angle2 = acos(b2)
+    angle_new = mean_angle(angle1, angle2)
+    a_new = sin(angle_new)
+    b_new = cos(angle_new)
+    rho_new = (x*a_new + y*b_new)
+
+    if mode == "rad":
+        return a_new, b_new, rho_new
+    if mode == "grad":
+        return int(acos(-b_new)*180.0/pi), -rho_new
+
+
+def splice_lines(hough_line_list, x_window_size, y_window_size, x_pt, y_pt, parallel_lines_margin, dot_product_threshold, hough_radius_angle):
     """
     Splices close lines in region into one line
     :param hough_line_list:
@@ -20,69 +56,36 @@ def line_splice(hough_line_list, x_window_size, y_window_size, x_pt, y_pt, paral
     #Iterates through lines
     while i < n:
         line1 = hough_line_list[i]
-        line_splice = [line1]
+        a1, b1, rho1 = unpack_line(line1)
         j = i + 1
         #Iterates through the rest of lines trying to find nearly parallel lines
         while j < n:
             line2 = hough_line_list[j]
-            a1, b1, rho1 = unpack_line(line1)
             a2, b2, rho2 = unpack_line(line2)
             try:
                 x, y = line_instersection(a1, b1, rho1, a2, b2, rho2)
             except ValueError as e:
                 if str(e) == "Overlap":
-                    x, y = x_pt + x_window_size/2, y_pt + y_window_size/2
+                    del hough_line_list[j]
+                    n -= 1
+                    continue
                 if str(e) == "Parallel":
                     if abs(rho2 - rho1) < parallel_lines_margin:
-                        x, y = x_pt + x_window_size/2, y_pt + y_window_size/2 #FIXIT
+                        del hough_line_list[j]
+                        n -= 1
+                        continue
                     else:
-                        x, y = -1, -1
+                        j += 1
+                        continue
             #Lines intersect in rectangle and almost parallel
             if x_pt <= x <= x_pt + x_window_size and y_pt <= y <= y_pt + y_window_size and abs(dot_product(a1, b1, a2, b2)) > dot_product_threshold:
-                line_splice.append(line2)
+                mean_weight = (line1[2] + line2[2])/2
+                spliced_line = splice_line(a1, b1, rho1, a2, b2, rho2, mode="grad")
+                line1 = (spliced_line[0], spliced_line[1], mean_weight)
                 del hough_line_list[j]
                 n -= 1
             else:
                 j += 1
-        if len(line_splice) == 1:
-            refined_line_list.append(line1)
-        else:
-            #If more than one line found we should merge them
-            #Locates points where lines intersect borders of rectangle and splices them into two points which are
-            #used to build resulting line
-            x1_avg = 0
-            y1_avg = 0
-            x2_avg = 0
-            y2_avg = 0
-            is_vertical = False
-            if any([90 - hough_radius_angle < line[0] < 90 + hough_radius_angle for line in line_splice]):
-                lines_f = [make_ky_line(sin(line[0]*pi/180.0), -cos(line[0]*pi/180.0), -line[1]) for line in line_splice]
-                for line_f in lines_f:
-                    x1_avg += line_f(y_pt)
-                    y1_avg += y_pt
-                    x2_avg += line_f(y_pt + y_window_size)
-                    y2_avg += y_pt + y_window_size
-                    is_vertical = True
-            else:
-                lines_f = [make_kx_line(sin(line[0]*pi/180.0), -cos(line[0]*pi/180.0), -line[1]) for line in line_splice]
-                for line_f in lines_f:
-                    x1_avg += x_pt
-                    y1_avg += line_f(x_pt)
-                    x2_avg += x_pt + x_window_size
-                    y2_avg += line_f(x_pt + x_window_size)
-            x1_avg /= len(lines_f)
-            y1_avg /= len(lines_f)
-            x2_avg /= len(lines_f)
-            y2_avg /= len(lines_f)
-            dx = x2_avg - x1_avg
-            dy = y2_avg - y1_avg
-            norm = sqrt(dx*dx + dy*dy)
-            if is_vertical:
-                alpha = (acos(dx/norm)*180/pi)%180
-                rho = -(x1_avg*y2_avg - x2_avg*y1_avg)/norm
-            else:
-                alpha = (asin(dy/norm)*180/pi)%180
-                rho = (x1_avg*y2_avg - x2_avg*y1_avg)/norm
-            refined_line_list.append((alpha, rho))
+        refined_line_list.append(line1)
         i += 1
     return refined_line_list

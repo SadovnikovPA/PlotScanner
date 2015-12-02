@@ -9,14 +9,12 @@ from PIL import Image, ImageDraw, ImageFilter
 from utils_general import ensure_path_exists, map_to_origin_rectangle, debug
 from utils_draw import unpack_and_draw_lines, map_to_image_and_save
 from gradient import compute_gradient
-from find_hough_lines import find_hough_lines_in_piece, quick_window_detect
+from find_hough_lines import find_hough_lines_in_piece
 from integral_image import *
 from pixel_analyzer import mark_external_borders
 from projective_transform import find_transform_coeffs
-from line_splice import line_splice
 from corner_detection import find_corners, label_corners
 from mark_plot import mark_plot
-
 
 
 def prepare_environment():
@@ -138,7 +136,7 @@ if __name__ == "__main__":
         # Performs quick window search. Thus we obtain approximate location of document.
 
         processed_gradient_ii = compute_integral_image_buffer(external_borders_map, height, width, mode=4)
-        x_pt, y_pt, x_window_size, y_window_size = quick_window_detect(processed_gradient_ii, width, height)
+        x_pt, y_pt, x_window_size, y_window_size = integral_image_window_detect(processed_gradient_ii, width, height)
 
         if debug:
             if x_window_size != y_window_size:
@@ -152,8 +150,7 @@ if __name__ == "__main__":
             map_to_image_and_save(image_gradient, external_borders_map, debug_dir, filename, "_reprocessed_gradient.png", mode=6)
 
         # Performs Hough search in located window and splicing lines if several close found
-        hough_line_list = find_hough_lines_in_piece(image_gradient, x_pt, y_pt, x_pt + x_window_size, y_pt + y_window_size, hough_threshold, hough_radius_angle, hough_radius_rho)
-        refined_line_list = line_splice(hough_line_list, x_window_size, y_window_size, x_pt, y_pt, parallel_lines_margin, dot_product_threshold, hough_radius_angle)
+        refined_line_list = find_hough_lines_in_piece(image_gradient, x_pt, y_pt, x_pt + x_window_size, y_pt + y_window_size, hough_threshold, hough_radius_angle, hough_radius_rho)
 
         #Finds corners and marks them as upper-left, upper-right, down-left, down-right
         try:
@@ -165,7 +162,7 @@ if __name__ == "__main__":
 
         # Draws detected lines if 'debug' flag is set
         if debug:
-            unpack_and_draw_lines(draw, refined_line_list, width, height)
+            unpack_and_draw_lines(draw, refined_line_list, 3, width, height)
             for corner in corners:
                 draw.point(corner, (0, 0, 255))
                 image.save(join(debug_dir, filename + "_result.png"), "PNG")

@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 __author__ = 'Siarshai'
 
 
-def unpack_and_draw_line(draw, line, width, height):
+def unpack_and_draw_line(draw, line, width, height, mode=3):
     """
     Draws lines packed in (alpha, rho) parameters
     :param line: line parameters (alpha, rho)
@@ -19,19 +19,30 @@ def unpack_and_draw_line(draw, line, width, height):
         b = rho / cos(alpha * pi / 180.0)
         k = tan(alpha * pi / 180.0)
         fx = lambda arg: k * arg + b
-        draw.line((0, fx(0), width, fx(width)), fill=(0, 255, 0))
+        if mode == 3:
+            draw.line((0, fx(0), width, fx(width)), fill=(0, 255, 0))
+        else:
+            draw.line((0, fx(0), width, fx(width)), fill=128)
     else:
-        draw.line((rho, 0, rho, height), fill=(0, 255, 0))
+        if mode == 3:
+            draw.line((rho, 0, rho, height), fill=(0, 255, 0))
+        else:
+            draw.line((rho, 0, rho, height), fill=128)
 
 
-def unpack_and_draw_lines(draw, refined_line_list, width, height):
+def unpack_and_draw_lines(img_src, refined_line_list, mode=3, width=None, height=None):
     """
     Draws lines packed in (alpha, rho) parameters
     :param draw: drawer
     :return: nothing
     """
+    if not width or not height:
+        #Image passed instead of Drawer
+        width = img_src.size[0]
+        height = img_src.size[1]
+        img_src = ImageDraw.Draw(img_src)
     for line in refined_line_list:
-        unpack_and_draw_line(draw, line, width, height)
+        unpack_and_draw_line(img_src, line, width, height, mode)
 
 
 def map_to_image_and_save(image, data, directory, name, suffix, mode=4):

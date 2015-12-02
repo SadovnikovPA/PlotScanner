@@ -63,7 +63,7 @@ def apply_apply_gaussian_laplasian_to_image(pix, derivative_kernel, longitude_ke
     gaussian_laplasian = convolve2d(longitude_kernel, gaussian_laplasian)
 
     if image_type == "image":
-        image_data = convert_image_to_data_buffer(pix, width, height, mode)
+        image_data = convert_image_to_data_buffer(pix, width, height, mode, 2)
         result_data = convolve2d(image_data, gaussian_laplasian, mode='same')
     elif image_type == "buffer":
         result_data = convolve2d(pix, gaussian_laplasian, mode='same')
