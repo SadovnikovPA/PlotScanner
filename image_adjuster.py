@@ -1,8 +1,9 @@
-from os import listdir, makedirs, unlink
-from os.path import isfile, join, exists, dirname
+from os import listdir
+from os.path import isfile, join
 import sys
 from PIL import Image
 
+# Auxiliary for resizing images
 
 process_folder = sys.argv[1]
 suffix = sys.argv[2]

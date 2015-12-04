@@ -1,4 +1,7 @@
-from math import sqrt, atan2
+__author__ = 'Siarshai'
+
+
+from math import sqrt
 from PIL import Image, ImageDraw
 from utils_general import fill_the_gaps, filter_2_ur
 import numpy as np

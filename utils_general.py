@@ -7,34 +7,12 @@ from os.path import exists
 import numpy
 
 
-debug = True
+is_debug = False
 
 
 def ensure_path_exists(path):
     if not exists(path):
         makedirs(path)
-
-
-# def filter_2_ul(gradient_abs_list, width, height, f):
-#     """ Applies size 2 filter to memory buffer. Center is upper left pixel
-#     :param gradient_abs_list:
-#     :param width:
-#     :param height:
-#     :param f: applied filter
-#     :return: modified gradient_abs_list
-#     """
-#     gradient_abs_list_postmodified = []
-#     for x in range(width):
-#         tmp_gradient_abs_list_postmodified = []
-#         for y in range(height):
-#             if x == width - 1 or y == height - 1:
-#                 tmp_gradient_abs_list_postmodified.append(0)
-#             else:
-#                 temp = f(gradient_abs_list[x][y], gradient_abs_list[x+1][y],
-#                            gradient_abs_list[x][y+1], gradient_abs_list[x+1][y+1])
-#                 tmp_gradient_abs_list_postmodified.append(temp)
-#         gradient_abs_list_postmodified.append(tmp_gradient_abs_list_postmodified)
-#     return gradient_abs_list_postmodified
 
 
 def filter_2_dr_list(gradient_abs_list, width, height, f):
@@ -343,14 +321,20 @@ def map_to_origin_rectangle(ul, ur, dl, dr, thumbnail_factor):
     return ul_orig, ur_orig, dl_orig, dr_orig
 
 
-def convert_image_to_data_buffer(pix, width, height, mode=3, orientation=1):
-    if orientation == 1:
-        if mode == 1:
+def convert_image_to_data_buffer(pix, width, height, channels=3, orientation="data-wise"):
+    if orientation == "data-wise":
+        if channels == 1:
             return numpy.array([[pix[x, y] for x in range(width)] for y in range(height)])
-        else:
+        elif channels == 3:
             return numpy.array([[(pix[x, y][0] + pix[x, y][1] + pix[x, y][2])/3 for x in range(width)] for y in range(height)])
-    else:
-        if mode == 1:
-            return numpy.array([[pix[x, y] for y in range(height)] for x in range(width)])
         else:
+            raise ValueError("Unknown number of channels: {} (only 1 and 3 are possible)".format(channels))
+    elif orientation == "user-wise":
+        if channels == 1:
+            return numpy.array([[pix[x, y] for y in range(height)] for x in range(width)])
+        elif channels == 3:
             return numpy.array([[(pix[x, y][0] + pix[x, y][1] + pix[x, y][2])/3 for y in range(height)] for x in range(width)])
+        else:
+            raise ValueError("Unknown number of channels {} (only 1 and 3 are possible)".format(channels))
+    else:
+        raise ValueError("Unknown orientation " + orientation)

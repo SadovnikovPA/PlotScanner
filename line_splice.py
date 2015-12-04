@@ -1,5 +1,8 @@
-from math import sqrt, sin, cos, asin, acos, pi
-from utils_general import line_instersection, dot_product, make_ky_line, make_kx_line, unpack_line
+__author__ = 'Siarshai'
+
+
+from math import sin, cos, acos, pi
+from utils_general import line_instersection, dot_product, unpack_line
 
 
 def mean_angle(angle1, angle2):
@@ -53,10 +56,10 @@ def splice_line(a1, b1, rho1, a2, b2, rho2, mode="grad"):
     elif mode == "grad":
         return int(acos(-b_new)*180.0/pi), -rho_new
     else:
-        raise ValueError("")
+        raise ValueError("Unknown mode: {} (only 'rad' and 'grad' are possible)".format(mode))
 
 
-def splice_lines(hough_line_list, x_window_size, y_window_size, x_pt, y_pt, parallel_lines_margin, dot_product_threshold, hough_radius_angle):
+def splice_lines(hough_line_list, x_window_size, y_window_size, x_pt, y_pt, parallel_lines_margin, dot_product_threshold):
     """
     Splices close lines in region into one line
     :param hough_line_list:
@@ -65,7 +68,6 @@ def splice_lines(hough_line_list, x_window_size, y_window_size, x_pt, y_pt, para
     :param y_pt:
     :param parallel_lines_margin:
     :param dot_product_threshold:
-    :param hough_radius_angle:
     :return: list of four lines
     """
     refined_line_list = []

@@ -1,14 +1,14 @@
+__author__ = 'Siarshai'
+
 from statistics import median
 import sys
 from PIL import Image
 import numpy
 from scipy.signal import convolve2d
-from find_hough_lines import find_hough_lines_in_piece
 from kernels import get_gaussian_kernel
 from non_maximal_suppression import apply_recursive_nms
-from utils_draw import map_to_image_and_save, unpack_and_draw_lines, debug_dump_data
-from utils_general import debug, unpack_line, line_instersection
-from os.path import join
+from utils_draw import map_to_image_and_save
+import utils_general
 from kernels import apply_apply_gaussian_laplasian_to_image
 
 
@@ -63,13 +63,13 @@ def find_axes(image_data, width, height, skew_factor = 15):
     #Applies horizontal and vertical gaussian's laplasians
     simple_derivative = numpy.array([[-1, 1]])
     longitude_kernel = numpy.array([[0.33], [0.33], [0.33], [0.33], [0.33]])
-    data_h_laplasian = apply_apply_gaussian_laplasian_to_image(image_data, simple_derivative, longitude_kernel, width, height, image_type = "buffer")
+    data_h_laplasian = apply_apply_gaussian_laplasian_to_image(image_data, simple_derivative, longitude_kernel, width, height, mode= "buffer")
     for x in numpy.nditer(data_h_laplasian, op_flags=['readwrite']):
          x[...] = x if x > laplasian_threshold else 0
 
     simple_derivative = numpy.array([[-1], [1]])
     longitude_kernel = numpy.array([[0.33, 0.33, 0.33, 0.33, 0.33]])
-    data_v_laplasian = apply_apply_gaussian_laplasian_to_image(image_data, simple_derivative, longitude_kernel, width, height, image_type = "buffer")
+    data_v_laplasian = apply_apply_gaussian_laplasian_to_image(image_data, simple_derivative, longitude_kernel, width, height, mode= "buffer")
     for x in numpy.nditer(data_v_laplasian, op_flags=['readwrite']):
          x[...] = x if x > laplasian_threshold else 0
 
@@ -109,7 +109,7 @@ def find_crosses(image_data, cross_size = 7, nms_threshold_high = 30, nms_thresh
     width = image_data.shape[1]
     nms_mask_visited = numpy.zeros((height, width), dtype=bool)
 
-    if debug:
+    if utils_general.is_debug:
         find_crosses.counter += 1
         image_dump = Image.new("L", (width, height))
 
@@ -117,9 +117,9 @@ def find_crosses(image_data, cross_size = 7, nms_threshold_high = 30, nms_thresh
     if x_axis_cross == -1 or y_axis_cross == -1:
         raise ValueError("Axis not found")
 
-    if debug:
+    if utils_general.is_debug:
         print("Detected axes cross: ", x_axis_cross, y_axis_cross)
-        map_to_image_and_save(image_dump, image_data, "debug/", str(find_crosses.counter), "_before_cross_filter.png", mode = 7)
+        map_to_image_and_save(image_dump, image_data, "debug/", str(find_crosses.counter), "_before_cross_filter.png", mode = "user-wise")
 
     #Convolving image data with kernel detecting crosses
     cross_center = cross_size//2
@@ -147,19 +147,19 @@ def find_crosses(image_data, cross_size = 7, nms_threshold_high = 30, nms_thresh
                 data_cross[y_axis_cross + 1, x_axis_cross + i] = 255
     data_cross = convolve2d(data_cross, get_gaussian_kernel(3, 2, True))
 
-    if debug:
-        map_to_image_and_save(image_dump, data_cross, "debug/", str(find_crosses.counter), "_before_nms.png", mode = 7)
+    if utils_general.is_debug:
+        map_to_image_and_save(image_dump, data_cross, "debug/", str(find_crosses.counter), "_before_nms.png", mode = "user-wise")
 
     x_low, x_high, y_low, y_high = find_plot_box([(x_axis_cross, y_axis_cross)], data_cross, nms_mask_visited, nms_threshold_axis_deletion, width, height)
     box = ((y_low, y_high), (x_low, x_high))
 
-    if debug:
+    if utils_general.is_debug:
         print("Graph box: ", box)
 
     data_cross = apply_recursive_nms(box, data_cross, nms_mask_visited, nms_threshold_low, nms_threshold_high)
 
-    if debug:
-        map_to_image_and_save(image_dump, data_cross, "debug/", str(find_crosses.counter), "_after_nms.png", mode = 7)
+    if utils_general.is_debug:
+        map_to_image_and_save(image_dump, data_cross, "debug/", str(find_crosses.counter), "_after_nms.png", mode = "user-wise")
 
     #Lising points passed through non-maximal suppression
     crosses_result_pt_list = []

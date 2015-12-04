@@ -1,13 +1,13 @@
+__author__ = 'Siarshai'
+
+
 from math import sin, cos, pi, sqrt
 from utils_general import is_local_maximum_circular
 from line_splice import splice_lines
 import numpy
 
 
-__author__ = 'Siarshai'
-
-
-def find_hough_lines_in_piece(image_gradient, x_ul, y_ul, x_dr, y_dr, hough_threshold, hough_radius_angle, hough_radius_rho, number_of_lines=4, mode=1, filter_angle_function=None):
+def find_hough_lines_in_piece(image_gradient, x_ul, y_ul, x_dr, y_dr, hough_threshold, hough_radius_angle, hough_radius_rho, number_of_lines=4, mode="image", filter_angle_function=None):
     """
     Applies Hough algorithm to image's gradient in rectangle between points (x_ul, y_ul), (x_dr, y_dr)
     then thresholds Hough data buffer for every pixel in rectangle (-hough_radius_anglel, hough_radius_angle),
@@ -24,10 +24,12 @@ def find_hough_lines_in_piece(image_gradient, x_ul, y_ul, x_dr, y_dr, hough_thre
     """
 
     # Preparing data
-    if mode == 1:
+    if mode == "image":
         pix_grad = image_gradient.load()
-    else:
+    elif mode == "buffer":
         pix_grad = numpy.transpose(image_gradient)
+    else:
+        raise ValueError("ERROR: wrong type of image: {} (only 'image' and 'buffer' are possible))".format(mode))
 
     width = x_dr - x_ul
     height = y_dr - y_ul
@@ -54,7 +56,7 @@ def find_hough_lines_in_piece(image_gradient, x_ul, y_ul, x_dr, y_dr, hough_thre
 
     parallel_lines_margin = 5
     dot_product_threshold = 0.90
-    hough_line_list = splice_lines(hough_line_list, width, height, x_ul, y_ul, parallel_lines_margin, dot_product_threshold, hough_radius_angle)
+    hough_line_list = splice_lines(hough_line_list, width, height, x_ul, y_ul, parallel_lines_margin, dot_product_threshold)
 
     if filter_angle_function:
         hough_line_list = [line for line in hough_line_list if filter_angle_function(line[0])]

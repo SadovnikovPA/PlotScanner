@@ -1,12 +1,14 @@
+__author__ = 'Siarshai'
+
+
 from math import cos, pi, tan
 from os.path import join
 from PIL import ImageDraw, Image
 from matplotlib import pyplot as plt
 
-__author__ = 'Siarshai'
 
 
-def unpack_and_draw_line(draw, line, width, height, mode=3):
+def unpack_and_draw_line(draw, line, width, height, color=None, channels=3):
     """
     Draws lines packed in (alpha, rho) parameters
     :param line: line parameters (alpha, rho)
@@ -19,18 +21,34 @@ def unpack_and_draw_line(draw, line, width, height, mode=3):
         b = rho / cos(alpha * pi / 180.0)
         k = tan(alpha * pi / 180.0)
         fx = lambda arg: k * arg + b
-        if mode == 3:
-            draw.line((0, fx(0), width, fx(width)), fill=(0, 255, 0))
+        if channels == 3:
+            if color is None:
+                draw.line((0, fx(0), width, fx(width)), fill=(0, 128, 0))
+            else:
+                draw.line((0, fx(0), width, fx(width)), fill=color)
+        elif channels == 1:
+            if color is None:
+                draw.line((0, fx(0), width, fx(width)), fill=128)
+            else:
+                draw.line((0, fx(0), width, fx(width)), fill=color)
         else:
-            draw.line((0, fx(0), width, fx(width)), fill=128)
+            raise ValueError("Unknown number of channels {} (only 1 and 3 are possible)".format(channels))
     else:
-        if mode == 3:
-            draw.line((rho, 0, rho, height), fill=(0, 255, 0))
+        if channels == 3:
+            if color is None:
+                draw.line((rho, 0, rho, height), fill=(0, 128, 0))
+            else:
+                draw.line((rho, 0, rho, height), fill=color)
+        elif channels == 1:
+            if color is None:
+                draw.line((rho, 0, rho, height), fill=128)
+            else:
+                draw.line((rho, 0, rho, height), fill=color)
         else:
-            draw.line((rho, 0, rho, height), fill=128)
+            raise ValueError("Unknown number of channels {} (only 1 and 3 are possible)".format(channels))
 
 
-def unpack_and_draw_lines(img_src, refined_line_list, mode=3, width=None, height=None):
+def unpack_and_draw_lines(img_src, refined_line_list, channels=3, width=None, height=None):
     """
     Draws lines packed in (alpha, rho) parameters
     :param draw: drawer
@@ -42,27 +60,27 @@ def unpack_and_draw_lines(img_src, refined_line_list, mode=3, width=None, height
         height = img_src.size[1]
         img_src = ImageDraw.Draw(img_src)
     for line in refined_line_list:
-        unpack_and_draw_line(img_src, line, width, height, mode)
+        unpack_and_draw_line(img_src, line, width, height, color=None, channels=channels)
 
 
-def map_to_image_and_save(image, data, directory, name, suffix, mode=4):
+def map_to_image_and_save(image, data, directory, name, suffix, mode="list-type"):
     draw = ImageDraw.Draw(image)
     width = image.size[0]
     height = image.size[1]
-    if mode == 4:
+    if mode == "list-type":
         for y in range(height):
             for x in range(width):
                 draw.point((x, y), data[x][y])
-    elif mode == 6:
+    elif mode == "data-wise":
         for y in range(height):
             for x in range(width):
                 draw.point((x, y), data[x, y])
-    elif mode == 7:
+    elif mode == "user-wise":
         for y in range(height):
             for x in range(width):
                 draw.point((x, y), data[y, x])
     else:
-        raise ValueError("Incorrect mode")
+        raise ValueError("Incorrect mode: {} (only 'list-type', 'data-wise' and 'user-wise' are possible)".format())
     image.save(join(directory, name + suffix), "PNG")
 
 
@@ -84,10 +102,21 @@ def debug_dump_data(data):
     plt.show(block=True)
 
 
-def draw_point_plot(draw, xp, yp, pts_number, color=(128, 0, 0)):
+def draw_point_plot(draw, xp, yp, pts_number, color=None, channels=3):
     prev_pt_x = xp[0]
     prev_pt_y = yp[0]
     for i in range(1, pts_number):
-        draw.line((prev_pt_x, prev_pt_y, xp[i], yp[i]), fill=color)
+        if channels == 3:
+            if color is None:
+                draw.line((prev_pt_x, prev_pt_y, xp[i], yp[i]), fill=(128, 0, 0))
+            else:
+                draw.line((prev_pt_x, prev_pt_y, xp[i], yp[i]), fill=color)
+        elif channels == 1:
+            if color is None:
+                draw.line((prev_pt_x, prev_pt_y, xp[i], yp[i]), fill=128)
+            else:
+                draw.line((prev_pt_x, prev_pt_y, xp[i], yp[i]), fill=color)
+        else:
+            raise ValueError("Unknown number of channels {} (only 1 and 3 are possible)".format(channels))
         prev_pt_x = xp[i]
         prev_pt_y = yp[i]

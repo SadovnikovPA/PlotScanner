@@ -1,3 +1,6 @@
+__author__ = 'Siarshai'
+
+
 from numpy.linalg import solve
 from numpy import array
 

@@ -2,7 +2,7 @@ __author__ = 'Siarshai'
 
 import numpy as np
 
-def compute_integral_image_buffer(pix, height, width, mode = 1):
+def compute_integral_image_buffer(pix, height, width, mode = "image"):
     """
     Computes integral image
     :param pix: origin image
@@ -13,7 +13,7 @@ def compute_integral_image_buffer(pix, height, width, mode = 1):
     """
     integral_image_buffer = np.zeros((width, height))
 
-    if mode == 1:
+    if mode == "image":
         integral_image_buffer[0, 0] = pix[0, 0]
         for x in range(1, width):
             integral_image_buffer[x, 0] = integral_image_buffer[x-1, 0] + pix[x, 0]
@@ -27,22 +27,7 @@ def compute_integral_image_buffer(pix, height, width, mode = 1):
                                                           integral_image_buffer[x, y-1] + \
                                                           integral_image_buffer[x-1, y] + \
                                                           gray
-
-    elif mode == 3:
-        integral_image_buffer[0, 0] = (pix[0, 0][0] + pix[0, 0][1] + pix[0, 0][2])/3
-        for x in range(1, width):
-            integral_image_buffer[x, 0] = integral_image_buffer[x - 1, 0] + (pix[x, 0][0] + pix[x, 0][1] + pix[x, 0][2])/3
-        for y in range(height):
-            for x in range(width):
-                gray = (pix[x, y][0] + pix[x, y][1] + pix[x, y][2])/3
-            if y == 0:
-                integral_image_buffer[x, y] = integral_image_buffer[x, y-1] + gray
-            else:
-                integral_image_buffer[x, y] = -integral_image_buffer[x-1, y-1] + \
-                                                      integral_image_buffer[x, y-1] + \
-                                                      integral_image_buffer[x-1, y] + \
-                                                      gray
-    elif mode == 4:
+    elif mode == "buffer":
         integral_image_buffer[0, 0] = pix[0][0]
         for x in range(1, width):
             integral_image_buffer[x, 0] = integral_image_buffer[x-1, 0] + pix[x][0]
@@ -56,6 +41,8 @@ def compute_integral_image_buffer(pix, height, width, mode = 1):
                                                           integral_image_buffer[x, y-1] + \
                                                           integral_image_buffer[x-1, y] + \
                                                           gray
+    else:
+        raise ValueError("ERROR: wrong type of image: {} (only 'image' and 'buffer' are possible))".format(mode))
 
     return integral_image_buffer
 

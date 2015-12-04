@@ -1,3 +1,6 @@
+__author__ = 'Siarshai'
+
+
 from math import sqrt, pi, exp
 from scipy.signal import convolve2d
 from utils_general import convert_image_to_data_buffer
@@ -46,10 +49,10 @@ def np_normalize_kernel(kernel):
     return kernel
 
 
-def apply_kernel_to_image(pix, kernel, width, height, mode=3):
-    if mode == 1:
+def apply_kernel_to_image(pix, kernel, width, height, channels=3):
+    if channels == 1:
         data_buffer = [[pix[x, y] for x in range(width)] for y in range(height)]
-    elif mode == 3:
+    elif channels == 3:
         data_buffer = [[(pix[x, y][0] + pix[x, y][1] + pix[x, y][2])/3 for x in range(width)] for y in range(height)]
     else:
         data_buffer = pix #passed data buffer
@@ -57,18 +60,18 @@ def apply_kernel_to_image(pix, kernel, width, height, mode=3):
     return data_buffer
 
 
-def apply_apply_gaussian_laplasian_to_image(pix, derivative_kernel, longitude_kernel, width, height, radius = 2, sigma = 1, mode=3, image_type="image"):
+def apply_apply_gaussian_laplasian_to_image(pix, derivative_kernel, longitude_kernel, width, height, radius = 2, sigma = 1, channels=3, mode="image"):
 
     gaussian_laplasian = get_gaussian_laplasian(radius, sigma, derivative_kernel, normalized=True)
     gaussian_laplasian = convolve2d(longitude_kernel, gaussian_laplasian)
 
-    if image_type == "image":
-        image_data = convert_image_to_data_buffer(pix, width, height, mode, 2)
+    if mode == "image":
+        image_data = convert_image_to_data_buffer(pix, width, height, channels, orientation="user-wise")
         result_data = convolve2d(image_data, gaussian_laplasian, mode='same')
-    elif image_type == "buffer":
+    elif mode == "buffer":
         result_data = convolve2d(pix, gaussian_laplasian, mode='same')
     else:
-        raise ValueError("ERROR: wrong type of image: {}".format(image_type))
+        raise ValueError("ERROR: wrong type of image: {} (only 'image' and 'buffer' are possible))".format(mode))
 
     return result_data
 

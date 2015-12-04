@@ -1,12 +1,13 @@
 __author__ = 'Siarshai'
 
 from os import listdir, makedirs, unlink
-from os.path import isfile, join, exists, dirname
+from os.path import isfile, join, exists, dirname, splitext
 import sys
 
 from PIL import Image, ImageDraw, ImageFilter
 
-from utils_general import ensure_path_exists, map_to_origin_rectangle, debug
+import utils_general
+from utils_general import ensure_path_exists, map_to_origin_rectangle
 from utils_draw import unpack_and_draw_lines, map_to_image_and_save
 from gradient import compute_gradient
 from find_hough_lines import find_hough_lines_in_piece
@@ -19,20 +20,17 @@ from mark_plot import mark_plot
 
 def prepare_environment():
     argc = len(sys.argv)
-    if argc != 3:
+    if argc < 3 or argc > 4:
         print("ERROR: Wrong number of arguments. " +
-              "Usage: script.py path/to/folder/to/process path/to/output/folder")
+              "Usage: script.py path/to/folder/to/process path/to/output/folder [path/to/debug/folder]")
         exit(1)
 
     process_folder = sys.argv[1]
     if not exists(dirname(process_folder)):
         print("ERROR: Directory with processed files does not exist")
         exit(1)
-    files_to_process = [ (join(process_folder, f), f) for f in listdir(process_folder) if isfile(join(process_folder, f)) ]
-    if debug:
-        print("Processing files:")
-        for filename in files_to_process:
-            print(filename[0])
+    files_to_process = [ (join(process_folder, f), splitext(f)[0]) for f in listdir(process_folder) if isfile(join(process_folder, f)) ]
+
 
     path_to_output_documents = sys.argv[2]
     try:
@@ -46,8 +44,9 @@ def prepare_environment():
         print("ERROR: can not access output directory", str(e))
         exit(1)
 
-    debug_dir = "debug"
-    if debug:
+    if len(sys.argv) == 4:
+        debug_dir = sys.argv[3]
+        utils_general.is_debug = True
         if not exists(debug_dir):
             makedirs(debug_dir)
         else:
@@ -56,6 +55,10 @@ def prepare_environment():
                 file_path = join(debug_dir, the_file)
                 if isfile(file_path):
                     unlink(file_path)
+    if utils_general.is_debug:
+        print("Processing files:")
+        for filename in files_to_process:
+            print(filename[0])
 
     return files_to_process, path_to_output_documents, debug_dir
 
@@ -85,7 +88,7 @@ if __name__ == "__main__":
     a4_size_y = 297*2
 
     #Hough search constants
-    hough_threshold = 20 #35
+    hough_threshold = 20
     hough_radius_angle = 20
     hough_radius_rho = 40
 
@@ -103,11 +106,15 @@ if __name__ == "__main__":
             origin = Image.open(path)
         except FileNotFoundError:
             #Should not happen unless user modifies pictures in directory path/to/folder/to/process while program is running
-            print("ERROR: file " + path + "not found")
+            print("ERROR: file " + path + "not found. Probably directory is modified while running.")
             continue
-        except EnvironmentError:
+        except IOError:
+            print("ERROR: can not read " + path + ". Probably unknown format or file is corrupted.")
+            continue
+        except Exception:
             print("ERROR: can not access " + path)
             continue
+
 
         #Resizing and smoothing image
         image = origin.copy()
@@ -119,26 +126,26 @@ if __name__ == "__main__":
         height = image.size[1]
         pix = image.load()
 
-        if debug:
+        if utils_general.is_debug:
             image.save(join(debug_dir, filename + "_image+median.png"), "PNG")
 
         # Creates image for gradient then processing it
         image_gradient, gradient_abs = compute_gradient(pix, width, height, gradient_threshold)
-        if debug:
+        if utils_general.is_debug:
             image_gradient.save(join(debug_dir, filename + "_gradient.png"), "PNG")
 
         external_borders_map = np.zeros((width, height)) #[[0]*height for x in range(width)]
         external_borders_map = mark_external_borders(external_borders_map, gradient_abs, 0, height, 0, width, 25, 1, False)
 
-        if debug:
-            map_to_image_and_save(image_gradient, external_borders_map, debug_dir, filename, "_processed_gradient.png", mode=6)
+        if utils_general.is_debug:
+            map_to_image_and_save(image_gradient, external_borders_map, debug_dir, filename, "_processed_gradient.png", mode="data-wise")
 
         # Performs quick window search. Thus we obtain approximate location of document.
 
-        processed_gradient_ii = compute_integral_image_buffer(external_borders_map, height, width, mode=4)
+        processed_gradient_ii = compute_integral_image_buffer(external_borders_map, height, width, mode="buffer")
         x_pt, y_pt, x_window_size, y_window_size = integral_image_window_detect(processed_gradient_ii, width, height)
 
-        if debug:
+        if utils_general.is_debug:
             if x_window_size != y_window_size:
                 print("WARNING: quick window search unsuccessful, performing search on whole image")
             draw.rectangle((x_pt, y_pt, x_pt + x_window_size, y_pt + y_window_size), fill=None)
@@ -146,8 +153,8 @@ if __name__ == "__main__":
 
         external_borders_map = mark_external_borders(external_borders_map, gradient_abs, y_pt, y_pt + y_window_size, x_pt, x_pt + x_window_size, 1000, 0, True)
 
-        if debug:
-            map_to_image_and_save(image_gradient, external_borders_map, debug_dir, filename, "_reprocessed_gradient.png", mode=6)
+        if utils_general.is_debug:
+            map_to_image_and_save(image_gradient, external_borders_map, debug_dir, filename, "_reprocessed_gradient.png", mode="data-wise")
 
         # Performs Hough search in located window and splicing lines if several close found
         refined_line_list = find_hough_lines_in_piece(image_gradient, x_pt, y_pt, x_pt + x_window_size, y_pt + y_window_size, hough_threshold, hough_radius_angle, hough_radius_rho)
@@ -161,14 +168,14 @@ if __name__ == "__main__":
             continue
 
         # Draws detected lines if 'debug' flag is set
-        if debug:
+        if utils_general.is_debug:
             unpack_and_draw_lines(draw, refined_line_list, 3, width, height)
             for corner in corners:
                 draw.point(corner, (0, 0, 255))
                 image.save(join(debug_dir, filename + "_result.png"), "PNG")
 
         ul_orig, ur_orig, dl_orig, dr_orig = map_to_origin_rectangle(ul, ur, dl, dr, thumbnail_factor)
-        if debug:
+        if utils_general.is_debug:
             print("Detected document's corners: ul {}, ur {}, dl {}, dr {}".format(ul_orig, ur_orig, dl_orig, dr_orig))
 
         #Extracts document and marks plot
