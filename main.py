@@ -44,6 +44,7 @@ def prepare_environment():
         print("ERROR: can not access output directory", str(e))
         exit(1)
 
+    debug_dir = ""
     if len(sys.argv) == 4:
         debug_dir = sys.argv[3]
         utils_general.is_debug = True
