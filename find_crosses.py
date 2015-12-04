@@ -9,9 +9,20 @@ from non_maximal_suppression import apply_recursive_nms
 from utils_draw import map_to_image_and_save, unpack_and_draw_lines, debug_dump_data
 from utils_general import debug, unpack_line, line_instersection
 from os.path import join
+from kernels import apply_apply_gaussian_laplasian_to_image
 
 
-def axis_lookup(points_to_visit, data, mask_visited, threshold, width, height):
+def find_plot_box(points_to_visit, data, mask_visited, threshold, width, height):
+    """
+    Looks through
+    :param points_to_visit:
+    :param data:
+    :param mask_visited:
+    :param threshold:
+    :param width:
+    :param height:
+    :return:
+    """
     x_low = sys.maxsize
     x_high = -1
     y_low = sys.maxsize
@@ -37,38 +48,44 @@ def axis_lookup(points_to_visit, data, mask_visited, threshold, width, height):
     return x_low, x_high, y_low, y_high
 
 
-def find_crosses(data_h, data_v, image_data):
+def find_axes(image_data, width, height, skew_factor = 15):
+    """
+    Finds axes and point where they cross. This algorithm is more robust than usual Hough for this purpose,
+    but works slightly longer.
+    :param data_h:
+    :param data_v:
+    :param width:
+    :param height:
+    :param skew_factor: parameter, how skewed axes can be (the less, the more skewed)
+    :return: point where axes cross
+    """
+    laplasian_threshold = 30
+    #Applies horizontal and vertical gaussian's laplasians
+    simple_derivative = numpy.array([[-1, 1]])
+    longitude_kernel = numpy.array([[0.33], [0.33], [0.33], [0.33], [0.33]])
+    data_h_laplasian = apply_apply_gaussian_laplasian_to_image(image_data, simple_derivative, longitude_kernel, width, height, image_type = "buffer")
+    for x in numpy.nditer(data_h_laplasian, op_flags=['readwrite']):
+         x[...] = x if x > laplasian_threshold else 0
 
-    if len(data_h) != len(data_v) or len(data_h[0]) != len(data_v[0]):
-        raise ValueError("find_crosses(): Vertical and horizontal data have different sizes")
+    simple_derivative = numpy.array([[-1], [1]])
+    longitude_kernel = numpy.array([[0.33, 0.33, 0.33, 0.33, 0.33]])
+    data_v_laplasian = apply_apply_gaussian_laplasian_to_image(image_data, simple_derivative, longitude_kernel, width, height, image_type = "buffer")
+    for x in numpy.nditer(data_v_laplasian, op_flags=['readwrite']):
+         x[...] = x if x > laplasian_threshold else 0
 
-    height = len(data_h)
-    width = len(data_h[0])
     hough_data = numpy.zeros((height, width), dtype=int)
-    nms_mask_visited = numpy.zeros((height, width), dtype=bool)
-
-    if debug:
-        find_crosses.counter += 1
-        image_dump = Image.new("L", (width, height))
-
-    # Points voting for lines
-    print("Hough started")
-    skew_factor = 15
     for x in range(width):
         for y in range(height):
-            if data_v[y, x] != 0:
+            if data_v_laplasian[y, x] != 0:
                 for xx in range(width):
-                    # norm = abs(x - xx)//skew_factor + 2
                     for yy in range(-abs(x - xx)//skew_factor - 1, abs(x - xx)//skew_factor + 2):
                         if 0 <= y + yy < height:
-                            hough_data[y + yy, xx] += 1 #(norm - abs(yy))/float(norm)
-            if data_h[y, x] != 0:
+                            hough_data[y + yy, xx] += 1
+            if data_h_laplasian[y, x] != 0:
                 for yy in range(height):
-                    # norm = abs(y - yy)//skew_factor + 2
                     for xx in range(-abs(y - yy)//skew_factor - 1, abs(y - yy)//skew_factor + 2):
                         if 0 <= x + xx < width:
-                            hough_data[yy, x + xx] += 1 #(norm - abs(xx))/float(norm)
-    print("Hough finished")
+                            hough_data[yy, x + xx] += 1
 
     result_max = 0
     x_axis_cross = -1
@@ -79,17 +96,32 @@ def find_crosses(data_h, data_v, image_data):
                 result_max = hough_data[y, x]
                 x_axis_cross = x
                 y_axis_cross = y
+    return x_axis_cross, y_axis_cross
 
+
+def find_crosses(image_data, cross_size = 7, nms_threshold_high = 30, nms_threshold_low = 10, nms_threshold_axis_deletion = 2):
+    """
+    :param image_data:
+    :return: (x axis cross, y axis cross), [list of detected plot points]
+    """
+
+    height = image_data.shape[0]
+    width = image_data.shape[1]
+    nms_mask_visited = numpy.zeros((height, width), dtype=bool)
+
+    if debug:
+        find_crosses.counter += 1
+        image_dump = Image.new("L", (width, height))
+
+    x_axis_cross, y_axis_cross = find_axes(image_data, width, height)
     if x_axis_cross == -1 or y_axis_cross == -1:
         raise ValueError("Axis not found")
 
     if debug:
         print("Detected axes cross: ", x_axis_cross, y_axis_cross)
-
-    if debug:
         map_to_image_and_save(image_dump, image_data, "debug/", str(find_crosses.counter), "_before_cross_filter.png", mode = 7)
 
-    cross_size = 7
+    #Convolving image data with kernel detecting crosses
     cross_center = cross_size//2
     negative_normalizer = 2*cross_size-1
     positive_normalizer = cross_size*cross_size - (4*cross_size - 8) - negative_normalizer
@@ -99,9 +131,7 @@ def find_crosses(data_h, data_v, image_data):
                                 for yyy in range(cross_size)])
     data_cross = convolve2d(image_data, cross_kernel, mode='same')
 
-    nms_threshold_high = 30
-    nms_threshold_low = 10
-    nms_threshold_axis_deletion = 2
+    #Fixup in case if there're holes in axes' lines
     for i in range(-6, 7):
         if 0 <= y_axis_cross + i < height:
             if 0 <= x_axis_cross - 1:
@@ -120,7 +150,7 @@ def find_crosses(data_h, data_v, image_data):
     if debug:
         map_to_image_and_save(image_dump, data_cross, "debug/", str(find_crosses.counter), "_before_nms.png", mode = 7)
 
-    x_low, x_high, y_low, y_high = axis_lookup([(x_axis_cross, y_axis_cross)], data_cross, nms_mask_visited, nms_threshold_axis_deletion, width, height)
+    x_low, x_high, y_low, y_high = find_plot_box([(x_axis_cross, y_axis_cross)], data_cross, nms_mask_visited, nms_threshold_axis_deletion, width, height)
     box = ((y_low, y_high), (x_low, x_high))
 
     if debug:
@@ -131,6 +161,7 @@ def find_crosses(data_h, data_v, image_data):
     if debug:
         map_to_image_and_save(image_dump, data_cross, "debug/", str(find_crosses.counter), "_after_nms.png", mode = 7)
 
+    #Lising points passed through non-maximal suppression
     crosses_result_pt_list = []
     crosses_result_val_list = []
     for y in range(box[0][0], box[0][1]):
@@ -142,6 +173,7 @@ def find_crosses(data_h, data_v, image_data):
     if not crosses_result_val_list:
         raise ValueError("Axis is found, but not plot points detected")
 
+    #Filtering weak fitting points
     threshold_cross_value = median(crosses_result_val_list)/2
     crosses_result_pt_list = [(item[0], item[1]) for item in crosses_result_pt_list if item[2] > threshold_cross_value]
 

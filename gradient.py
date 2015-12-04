@@ -32,14 +32,10 @@ def compute_gradient(pix, width, height, gradient_threshold):
 
     gradient_abs = np.zeros((width, height))
 
-    gradient_abs_list = []
-
     # Applies Sobel filter to image then thresholds. Both absolute value and direction get recorded
     for x in range(width):
-        tmp_gradient_abs_list = []
         for y in range(height):
             if x == 0 or y == 0 or x == width - 1 or y == height - 1:
-                # tmp_gradient_abs_list.append(0)
                 gradient_abs[x, y] = 0
             else:
                 derivative_xrh = apply_sobel_horizontal(pix, x, y, 0)
@@ -52,17 +48,9 @@ def compute_gradient(pix, width, height, gradient_threshold):
                 weightg = derivative_xgh*derivative_xgh + derivative_ygh*derivative_ygh
                 weightb = derivative_xbh*derivative_xbh + derivative_ybh*derivative_ybh
                 abs_gradient = int(sqrt(weightr + weightg + weightb))
-                # tmp_gradient_abs_list.append(255 if abs_gradient > gradient_threshold else 0)
                 gradient_abs[x, y] = 255 if abs_gradient > gradient_threshold else 0
-        # gradient_abs_list.append(tmp_gradient_abs_list)
 
     # Deletes stray gradient specks
-    # gradient_abs_list = fill_the_gaps(gradient_abs_list, 0, width, 0, height)
-    # gradient_abs_list = fill_the_gaps(gradient_abs_list, 0, width, 0, height)
-    # gradient_abs_list = fill_the_gaps(gradient_abs_list, 0, width, 0, height)
-    # filter_2_ur(gradient_abs_list, width, height, min)
-    # gradient_abs_list = fill_the_gaps(gradient_abs_list, 0, width, 0, height)
-
     gradient_abs = fill_the_gaps(gradient_abs, 0, width, 0, height)
     gradient_abs = fill_the_gaps(gradient_abs, 0, width, 0, height)
     gradient_abs = fill_the_gaps(gradient_abs, 0, width, 0, height)
@@ -71,7 +59,6 @@ def compute_gradient(pix, width, height, gradient_threshold):
 
     for x in range(width):
         for y in range(height):
-            # draw_gradient.point((x, y), gradient_abs_list[x][y])
             draw_gradient.point((x, y), gradient_abs[x, y])
 
     return image_gradient, gradient_abs

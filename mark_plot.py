@@ -3,7 +3,6 @@ from math import sqrt
 from PIL import ImageDraw
 import numpy as np
 
-from kernels import apply_apply_gaussian_laplasian_to_image
 from find_crosses import find_crosses
 from utils_general import debug, convert_image_to_data_buffer
 from utils_draw import draw_point_plot
@@ -23,7 +22,7 @@ def prepare_poly_interpolated_plot(x_list, y_list, pts_number, f_poly_power=-1):
     return xp, yp
 
 
-def mark_plot(image, laplasian_threshold = 30, f_poly_power = -1, plot_pts_size=50):
+def mark_plot(image, f_poly_power = -1, plot_pts_size=50):
     """
     Searches for plot axes and point marks then constructs a poly to interpolate a diagram
     :param image: image to operate on
@@ -36,21 +35,7 @@ def mark_plot(image, laplasian_threshold = 30, f_poly_power = -1, plot_pts_size=
     pix = image.load()
 
     image_data = convert_image_to_data_buffer(pix, width, height, mode=3)
-
-    #Applies horizontal and vertical gaussian's laplasians
-    simple_derivative = np.array([[-1, 1]])
-    longitude_kernel = np.array([[0.33], [0.33], [0.33], [0.33], [0.33]])
-    data_h_laplasian = apply_apply_gaussian_laplasian_to_image(image_data, simple_derivative, longitude_kernel, width, height, image_type = "buffer")
-    for x in np.nditer(data_h_laplasian, op_flags=['readwrite']):
-         x[...] = x if x > laplasian_threshold else 0
-
-    simple_derivative = np.array([[-1], [1]])
-    longitude_kernel = np.array([[0.33, 0.33, 0.33, 0.33, 0.33]])
-    data_v_laplasian = apply_apply_gaussian_laplasian_to_image(image_data, simple_derivative, longitude_kernel, width, height, image_type = "buffer")
-    for x in np.nditer(data_v_laplasian, op_flags=['readwrite']):
-         x[...] = x if x > laplasian_threshold else 0
-
-    x_axis_cross, y_axis_cross, crosses_result_list = find_crosses(data_h_laplasian, data_v_laplasian, image_data)
+    x_axis_cross, y_axis_cross, crosses_result_list = find_crosses(image_data)
 
     #This step is crucial for further poly interpolation and diagram drawing
     crosses_result_list.sort(reverse=True, key=lambda x: x[0])

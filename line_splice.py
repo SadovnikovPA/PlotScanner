@@ -3,6 +3,12 @@ from utils_general import line_instersection, dot_product, make_ky_line, make_kx
 
 
 def mean_angle(angle1, angle2):
+    """
+    Finds average line guiding angle. Result belongs to [0, pi]
+    :param angle1: angle in radians
+    :param angle2: angle in radians
+    :return: mean angle
+    """
     if angle1 < 0:
         n = -angle1//pi + 1
         angle1 += n*pi
@@ -24,6 +30,17 @@ def mean_angle(angle1, angle2):
 
 
 def splice_line(a1, b1, rho1, a2, b2, rho2, mode="grad"):
+    """
+    Splices two lines into bisector one. Lines should be presented in a*x + b*y = rho format
+    :param a1: a parameter of first line
+    :param b1: a parameter of first line
+    :param rho1: a parameter of first line
+    :param a2: a parameter of second line
+    :param b2: a parameter of second line
+    :param rho2: a parameter of second line
+    :param mode:
+    :return: if mode is "rad" returns (a, b, rho) parameters of line if mode if "grad" returns (angle, rho)
+    """
     x, y = line_instersection(a1, b1, rho1, a2, b2, rho2)
     angle1 = acos(b1)
     angle2 = acos(b2)
@@ -31,11 +48,12 @@ def splice_line(a1, b1, rho1, a2, b2, rho2, mode="grad"):
     a_new = sin(angle_new)
     b_new = cos(angle_new)
     rho_new = (x*a_new + y*b_new)
-
     if mode == "rad":
         return a_new, b_new, rho_new
-    if mode == "grad":
+    elif mode == "grad":
         return int(acos(-b_new)*180.0/pi), -rho_new
+    else:
+        raise ValueError("")
 
 
 def splice_lines(hough_line_list, x_window_size, y_window_size, x_pt, y_pt, parallel_lines_margin, dot_product_threshold, hough_radius_angle):

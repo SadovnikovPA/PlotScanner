@@ -2,6 +2,16 @@ __author__ = 'Siarshai'
 
 
 def apply_recursive_nms(box, data, mask_visited, threshold_low, threshold_high):
+    """
+    Detects regions with value above threshold_low. Nullifis them, remaining only local maximum point only if it's above
+     threshold_high
+    :param box:
+    :param data:
+    :param mask_visited:
+    :param threshold_low:
+    :param threshold_high:
+    :return:
+    """
     for y in range(box[0][0], box[0][1]):
         for x in range(box[1][0], box[1][1]):
             if not mask_visited[y, x]:
